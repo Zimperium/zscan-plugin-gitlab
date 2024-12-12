@@ -35,6 +35,7 @@ These parameters are optional, but may be used to supply additional information 
 
 - **ZSCAN_REPORT_LOCATION**: destination folder for the vulnerability report. If not provided, the report is stored in the current workspace. Report location and name are important for [Job Artifact](https://docs.gitlab.com/ee/ci/jobs/job_artifacts.html) collection.
 - **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-AssessmentID-report_format.json, e.g., _zscan-results-123456789-sarif.json_.
+- **ZSCAN_WAIT_FOR_REPORT**: if set to "true" (default), the script will wait for the assessment report to be complete. Otherwise, the script will exit after uploading the binary to zScan.  The assessment report can be obtained through the console. Report filename and location parameters are ignored. No artifact will be produced.
 - **ZSCAN_POLLING_INTERVAL**: wait time for polling the server in seconds. 30 seconds is the default.
 - **ZSCAN_BRANCH**: source code branch that the build is based on.
 - **ZSCAN_BUILD_NUMBER**: application build number.
@@ -57,7 +58,7 @@ zScan:
     # Optional
     - wget -O sarif-converter https://gitlab.com/ignis-build/sarif-converter/-/releases/v0.9.2/downloads/bin/sarif-converter-linux-amd64
     - chmod +x sarif-converter
-    - ./sarif-converter --type sast $PLUGIN_REPORT_FILE_NAME zscan-report.json
+    - ./sarif-converter --type sast $ZSCAN_REPORT_FILE_NAME zscan-report.json
   artifacts:
     name: "zScan Results"
     reports:
@@ -71,8 +72,10 @@ The above example assumes that the variables are correctly configured, including
   artifacts:
     name: "zScan Results"
     paths:
-      $PLUGIN_REPORT_FILE_NAME
+      $ZSCAN_REPORT_FILE_NAME
 ```
+
+As mentioned above, if the script is configured not to wait for an assessment report, no artifacts will be produced.
 
 ## License
 

@@ -3,7 +3,7 @@
 set -e
 
 # Debug?
-if [ -n "$PLUGIN_DEBUG" ]; then
+if [ -n "$ZSCAN_DEBUG" ]; then
   set -x
   pwd
   ls -la
@@ -20,6 +20,7 @@ report_format=${ZSCAN_REPORT_FORMAT:-sarif}
 # Optional parameters
 report_location=${ZSCAN_REPORT_LOCATION:-.}
 report_file_name=${ZSCAN_REPORT_FILE_NAME:-}
+wait_for_report=${ZSCAN_WAIT_FOR_REPORT:true}
 wait_interval=${ZSCAN_POLLING_INTERVAL:-30}
 branch_name=${ZSCAN_BRANCH:-}
 build_number=${ZSCAN_BUILD_NUMBER:-}
@@ -87,7 +88,7 @@ if [[ $? -eq 0 ]]; then
   # Check if access token is found
   if [[ -n "$access_token" ]]; then
     # If debug set, print the token.  Otherwise, print the first 10 characters.
-    if [ -n "$PLUGIN_DEBUG" ]; then
+    if [ -n "$ZSCAN_DEBUG" ]; then
       echo "Extracted access token: ${access_token}"
     else
       echo "Extracted access token: ${access_token:0:10}..."
@@ -182,6 +183,11 @@ if [ "$teamId" == "null" ]; then
   fi  
 fi
 
+# If no need to wait for report, we're done
+if [ "$wait_for_report" != "true" ]; then
+  echo "ZSCAN_WAIT_FOR_REPORT is not set. We're done!"
+  exit 0
+fi
 
 # Check the Status in a loop - wait for Interval
 # TODO: add timeout
@@ -237,6 +243,6 @@ echo "Response saved to: $OUTPUT_FILE"
 # write out the name of the output file to be used in subsequent steps or stages
 echo "ZSCAN_OUTPUT_FILE=$OUTPUT_FILE" >> $drone_output
 
-if [ -n "$PLUGIN_DEBUG" ]; then
+if [ -n "$ZSCAN_DEBUG" ]; then
   ls -la
 fi
