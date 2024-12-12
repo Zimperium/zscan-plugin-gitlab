@@ -20,7 +20,7 @@ report_format=${ZSCAN_REPORT_FORMAT:-sarif}
 # Optional parameters
 report_location=${ZSCAN_REPORT_LOCATION:-.}
 report_file_name=${ZSCAN_REPORT_FILE_NAME:-}
-wait_interval=${ZSCAN_WAIT:-30}
+wait_interval=${ZSCAN_POLLING_INTERVAL:-30}
 branch_name=${ZSCAN_BRANCH:-}
 build_number=${ZSCAN_BUILD_NUMBER:-}
 environment=${ZSCAN_ENVIRONMENT:-}
@@ -102,17 +102,6 @@ fi
 
 # Construct the Authorization header with Bearer token
 AUTH_HEADER="Authorization: Bearer ${access_token}"
-
-# Upload the Binary
-# with Build Info
-# -F 'buildFile=@"/path/to/file"' \
-# -F 'buildNumber="dev-may17-1"' \
-# -F 'startedBy="pateln"' \
-# -F 'branchName="SRV-217"' \
-# -F 'environment="dev"' \
-# -F 'ciToolId="NP-Dev-TC"' \
-# -F 'ciToolName="TeamCity"' \
-# -F 'startTime="2019-05-17T01:30:00.000-05:00"'
 
 response=$(curl -X POST \
   -H "${AUTH_HEADER}" \
