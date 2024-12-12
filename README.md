@@ -52,9 +52,9 @@ zScan:
   interruptible: true
   stage: test
   script:
-    - wget https://raw.githubusercontent.com/Zimperium/zscan-plugin-gitlab/refs/heads/master/zScan_v1.sh
-    - chmod +x zScan_v1.sh
-    - ./zScan_v1.sh
+    - wget -O zScan.sh https://raw.githubusercontent.com/Zimperium/zscan-plugin-gitlab/refs/heads/master/zScan_v1.sh
+    - chmod +x zScan.sh
+    - ./zScan.sh
     # Optional
     - wget -O sarif-converter https://gitlab.com/ignis-build/sarif-converter/-/releases/v0.9.2/downloads/bin/sarif-converter-linux-amd64
     - chmod +x sarif-converter
