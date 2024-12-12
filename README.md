@@ -9,8 +9,11 @@ For more information on zScan, please see [Continuous Mobile Application Securit
 ## Prerequisites
 
 1. Zimperium [MAPS](https://www.zimperium.com/mobile-app-protection/) license that includes zScan functionality.
-2. API credentials with permissions to upload binaries
-3. A valid application binary (.ipa, .apk, etc.), either built by the current pipeline or otherwise accessible by the script.
+2. A valid application binary (.ipa, .apk, etc.), either built by the current pipeline or otherwise accessible by the script.
+3. API credentials with permissions to upload binaries. In your console, head over to the Authorizations tab in the Account Management section and generate a new API key. At a minimum, the following permissions are required:
+
+- Common Section: Teams - Manage
+- zScan Section: zScan Apps - Manage, zScan Assessments - View, zScan Builds - Upload
 
 ## Parameters
 
@@ -18,10 +21,10 @@ We recommend using GitLab [Variables](https://docs.gitlab.com/ee/ci/variables/#d
 
 ### Mandatory
 
-These parameters are mandatory, _unless_ a default value is available as described below. 
+These parameters are mandatory, _unless_ a default value is available as described below.
 
 - **ZSCAN_SERVER_URL**: console base URL, e.g., `https://ziap.zimperium.com/`.
-- **ZSCAN_CLIENT_ID** and **ZSCAN_CLIENT_SECRET**: API credentials that can be obtained from the console.
+- **ZSCAN_CLIENT_ID** and **ZSCAN_CLIENT_SECRET**: API credentials that can be obtained from the console (see the [Prerequisites](#prerequisites) section above).
 - **ZSCAN_INPUT_FILE**: the path to the binary relative to the current workspace.
 - **ZSCAN_TEAM_NAME**: name of the team to which this application belongs.  This is required only if submitting the application for the first time; values are ignored if the application already exists in the console and assigned to a team.  If not supplied, the application will be assigned to the 'Default' team
 - **ZSCAN_REPORT_FORMAT**: the format of the scan report, either 'json' or 'sarif' (default).  If you plan on importing zScan results into GitLab Ultimate edition, please use sarif format.  For more information on the SARIF format, please see [OASIS Open](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html).
@@ -41,7 +44,7 @@ These parameters are optional, but may be used to supply additional information 
 
 Please refer to [GitLab Documentation](https://docs.gitlab.com/ee/ci/jobs/) for instructions on using scripts in your GitLab pipelines.  Here's a _sample_ zScan job that uploads an Android application to zScan and converts zScan SARIF output into GitLab's SAST-compatible artifact:
 
-```JSON
+```yaml
 # Upload to zScan and wait for scan results
 zScan:
   needs: [assembleDebug]
@@ -64,7 +67,7 @@ zScan:
 
 The above example assumes that the variables are correctly configured, including server URL, client id/secret, and the input file. The optional section uses an open source SARIF-to-GitLab converter to convert zScan report into the format suitable for importing into [GitLab Security dashboard](https://docs.gitlab.com/ee/user/application_security/security_dashboard/).  The Dashboard is only available with the GitLab Ultimate edition.  If this step is not applicable, you can modify the Artifact section of the job to look like this:
 
-```JSON
+```yaml
   artifacts:
     name: "zScan Results"
     paths:
