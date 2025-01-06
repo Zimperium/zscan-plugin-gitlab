@@ -20,7 +20,7 @@ report_format=${ZSCAN_REPORT_FORMAT:-sarif}
 # Optional parameters
 report_location=${ZSCAN_REPORT_LOCATION:-.}
 report_file_name=${ZSCAN_REPORT_FILE_NAME:-}
-wait_for_report=${ZSCAN_WAIT_FOR_REPORT:true}
+wait_for_report=${ZSCAN_WAIT_FOR_REPORT:-true}
 wait_interval=${ZSCAN_POLLING_INTERVAL:-30}
 branch_name=${ZSCAN_BRANCH:-}
 build_number=${ZSCAN_BUILD_NUMBER:-}
