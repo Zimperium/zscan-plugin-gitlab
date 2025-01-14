@@ -52,7 +52,8 @@ zScan:
   interruptible: true
   stage: test
   script:
-    - wget -O zScan.sh https://raw.githubusercontent.com/Zimperium/zscan-plugin-gitlab/refs/heads/master/zScan_v1.sh
+    - wget -O zScan.tar.gz https://github.com/Zimperium/zscan-plugin-gitlab/archive/refs/tags/v1.0.0.tar.gz
+    - tar --strip-components=1 -xf zScan.tar.gz
     - chmod +x zScan.sh
     - ./zScan.sh
     # Optional
@@ -66,7 +67,7 @@ zScan:
         - zscan-report.json
 ```
 
-The above example assumes that the variables are correctly configured, including server URL, client id/secret, and the input file. The optional section uses an open source SARIF-to-GitLab converter to convert zScan report into the format suitable for importing into [GitLab Security dashboard](https://docs.gitlab.com/ee/user/application_security/security_dashboard/).  The Dashboard is only available with the GitLab Ultimate edition.  If this step is not applicable, you can modify the Artifact section of the job to look like this:
+The above example assumes that the variables are correctly configured, including server URL, client id/secret, and the input file. You can adjust the v1.0.0 tag to point to the release of your choice. The optional section uses an open source SARIF-to-GitLab converter to convert zScan report into the format suitable for importing into [GitLab Security dashboard](https://docs.gitlab.com/ee/user/application_security/security_dashboard/).  The Dashboard is only available with the GitLab Ultimate edition.  If this step is not applicable, you can modify the Artifact section of the job to look like this:
 
 ```yaml
   artifacts:
