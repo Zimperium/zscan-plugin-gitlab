@@ -52,7 +52,8 @@ zScan:
   interruptible: true
   stage: test
   script:
-    - wget -O zScan.sh https://raw.githubusercontent.com/Zimperium/zscan-plugin-gitlab/refs/heads/master/zScan_v1.sh
+    - wget -O zScan.tar.gz https://github.com/Zimperium/zscan-plugin-gitlab/archive/refs/tags/v1.0.0.tar.gz
+    - tar --strip-components=1 -xf zScan.tar.gz
     - chmod +x zScan.sh
     - ./zScan.sh
     # Optional
