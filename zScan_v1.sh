@@ -76,9 +76,9 @@ fi
 
 # Remove trailing slashes from the URL
 server_url="${server_url%/}"
-
 # And remove trailing spaces
-server_url="${server_url% *}"
+server_url="${server_url%% *}"
+echo "Using console at \'${server_url}\'."
 
 # Execute the curl command with the server URL
 response=$(curl --location --request POST "${server_url}${login_url}" \
