@@ -78,7 +78,7 @@ fi
 server_url="${server_url%% *}"
 # Remove trailing slash from the URL
 server_url="${server_url%/}"
-echo "Using console at ${server_url}."
+echo "Using zConsole at ${server_url}."
 
 # Execute the curl command with the server URL
 response=$(curl --location --request POST "${server_url}${login_url}" \
