@@ -8,9 +8,10 @@ For more information on zScan, please see [Continuous Mobile Application Securit
 
 ## Prerequisites
 
-1. Zimperium [MAPS](https://www.zimperium.com/mobile-app-protection/) license that includes zScan functionality.
-2. A valid application binary (.ipa, .apk, etc.), either built by the current pipeline or otherwise accessible by the script.
-3. API credentials with permissions to upload binaries. In your console, head over to the Authorizations tab in the Account Management section and generate a new API key. At a minimum, the following permissions are required:
+1. Build environment, e.g., build agent, with `bash` or a compatible shell, `curl`, and `jq`.  Depending on the way this script is integrated into the build pipeline, `wget` and `unzip` may also be needed.
+2. Zimperium [MAPS](https://www.zimperium.com/mobile-app-protection/) license that includes zScan functionality.
+3. A valid application binary (.ipa, .apk, etc.), either built by the current pipeline or otherwise accessible by the script.
+4. API credentials with permissions to upload binaries. In your console, head over to the Authorizations tab in the Account Management section and generate a new API key. At a minimum, the following permissions are required:
 
 - Common Section: Teams - Manage
 - zScan Section: zScan Apps - Manage, zScan Assessments - View, zScan Builds - Upload
