@@ -34,7 +34,7 @@ These parameters are mandatory, _unless_ a default value is available as describ
 These parameters are optional, but may be used to supply additional information about the build and/or control the plugin's output.
 
 - **ZSCAN_REPORT_LOCATION**: destination folder for the vulnerability report. If not provided, the report is stored in the current workspace. Report location and name are important for [Job Artifact](https://docs.gitlab.com/ee/ci/jobs/job_artifacts.html) collection.
-- **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-AssessmentID-report_format.json, e.g., _zscan-results-123456789-sarif.json_.
+- **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-AssessmentID-report-format.json, e.g., _zscan-results-123456789-sarif.json_.
 - **ZSCAN_WAIT_FOR_REPORT**: if set to "true" (default), the script will wait for the assessment report to be complete. Otherwise, the script will exit after uploading the binary to zScan.  The assessment report can be obtained through the console. Report filename and location parameters are ignored. No artifact will be produced.
 - **ZSCAN_POLLING_INTERVAL**: wait time for polling the server in seconds. 30 seconds is the default.
 - **ZSCAN_BRANCH**: source code branch that the build is based on.
@@ -43,7 +43,7 @@ These parameters are optional, but may be used to supply additional information 
 
 ## Usage
 
-Please refer to [GitLab Documentation](https://docs.gitlab.com/ee/ci/jobs/) for instructions on using scripts in your GitLab pipelines.  Here's a _sample_ zScan job that uploads an Android application to zScan and converts zScan SARIF output into GitLab's SAST-compatible artifact:
+Please refer to [GitLab Documentation](https://docs.gitlab.com/ee/ci/jobs/) for instructions on using scripts in your GitLab pipelines.   In the "Pipeline Editor" section of the Build configuration, add the zScan upload job _after_ the one that builds your application binary, e.g., "assembleDebug".  Here's a _sample_ zScan job that uploads an Android application to zScan and converts zScan SARIF output into GitLab's SAST-compatible artifact:
 
 ```yaml
 # Upload to zScan and wait for scan results
@@ -67,7 +67,7 @@ zScan:
         - zscan-report.json
 ```
 
-The above example assumes that the variables are correctly configured, including server URL, client id/secret, and the input file. You can adjust the v1.0.0 tag to point to the release of your choice. The optional section uses an open source SARIF-to-GitLab converter to convert zScan report into the format suitable for importing into [GitLab Security dashboard](https://docs.gitlab.com/ee/user/application_security/security_dashboard/).  The Dashboard is only available with the GitLab Ultimate edition.  If this step is not applicable, you can modify the Artifact section of the job to look like this:
+Modify the above script as needed.  The sample script assumes that the variables are correctly configured per the [Parameters](#parameters) section above, including server URL, client id/secret, and the input file.  The optional part uses an open source SARIF-to-GitLab converter to convert zScan report into the format suitable for importing into [GitLab Security dashboard](https://docs.gitlab.com/ee/user/application_security/security_dashboard/).  The Dashboard is only available with the GitLab Ultimate edition.  If dashboard is not available, you can modify the Artifact section of the job to look like this and download the report from the Artifacts tab:
 
 ```yaml
   artifacts:
@@ -76,7 +76,7 @@ The above example assumes that the variables are correctly configured, including
       $ZSCAN_REPORT_FILE_NAME
 ```
 
-As mentioned above, if the script is configured not to wait for an assessment report, no artifacts will be produced.
+**Note:** If the script is configured not to wait for an assessment report, no artifacts will be produced.
 
 ## License
 
