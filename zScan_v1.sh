@@ -26,8 +26,10 @@ branch_name=${ZSCAN_BRANCH:-}
 build_number=${ZSCAN_BUILD_NUMBER:-}
 environment=${ZSCAN_ENVIRONMENT:-}
 
+
 # internal constants
 login_url="/api/auth/v1/api_keys/login"
+refresh_token_url="/api/auth/v1/api_keys/access"
 upload_url="/api/zdev-upload/public/v1/uploads/build"
 status_url="/api/zdev-app/public/v1/assessments/status?buildId="
 teams_url="/api/auth/public/v1/teams"
@@ -48,7 +50,7 @@ if [ -z "$input_pattern" ]; then
 fi
 
 # Find matching files in the current directory only
-files=$(ls -d "$input_pattern")
+files=$(ls -d $input_pattern)
 
 # Check if any files match the pattern
 if [ -z "$files" ]; then
@@ -89,7 +91,7 @@ server_url="${server_url%% *}"
 server_url="${server_url%/}"
 echo "Using zConsole at ${server_url}."
 
-# Execute the curl command with the server URL
+# Execute the curl command with the server URL to login
 response=$(curl --location --request POST "${server_url}${login_url}" \
 --header 'Content-Type: application/json' \
 --data-raw "{ \"clientId\": \"$client_id\", \"secret\": \"${secret}\" }" 2>/dev/null)
@@ -98,6 +100,7 @@ response=$(curl --location --request POST "${server_url}${login_url}" \
 if [[ $? -eq 0 ]]; then
   # Use jq (assuming it's installed) to parse JSON and extract accessToken
   access_token=$(echo "$response" | jq -r '.accessToken')
+  refresh_token=$(echo "$response" | jq -r '.refreshToken')
 
   # Check if access token is found
   if [[ -n "$access_token" ]]; then
@@ -109,6 +112,7 @@ if [[ $? -eq 0 ]]; then
     fi
   else
     echo "Error: access token not found in response."
+    exit 3
   fi
 else
   echo "Error: unable to obtain access token."
@@ -181,7 +185,7 @@ for input_file in "${input_files[@]}"; do
 
       if [ -z "$teamId" ]; then
         echo "Error: Failed to extract teamId for the team named '$team_name'. Please ensure you have granted the Authorization token the 'view teams' permission under the 'Common' category, within the console's Authorization settings."
-        exit 1
+        continue
       else
         echo -e "\nSuccessfully extracted teamId: '$teamId' for Team named: '$team_name'."
 
@@ -195,7 +199,7 @@ for input_file in "${input_files[@]}"; do
           }" 2>/dev/null)
 
         if [[ $? != 0 ]]; then
-          echo "Error: Failed to perform assign the application to the specified team. Although the scan will complete, the results will not be visible in the console UI. Set Debug to 1 to troubleshoot."
+          echo "Error: Failed to perform assign the application to the specified team. Although the scan will complete, the results will not be visible in the console UI. Set Debug to troubleshoot."
         fi
       fi
     else
@@ -206,7 +210,7 @@ for input_file in "${input_files[@]}"; do
   # If no need to wait for report, we're done
   if [ "$wait_for_report" != "true" ]; then
     echo "ZSCAN_WAIT_FOR_REPORT is not set. We're done!"
-    exit 0
+    continue
   fi
 
   # Check the Status in a loop - wait for Interval
@@ -238,6 +242,42 @@ for input_file in "${input_files[@]}"; do
     sleep ${wait_interval}
   done
 
+  # refresh the access token
+  echo "Refreshing access token..."
+  # save the previous access token to be used in case the refresh fails
+  prev_access_token=$access_token
+
+  # Execute the curl command with the server URL to refresh
+  response=$(curl --location --request POST "${server_url}${refresh_token_url}" \
+  --header 'Content-Type: application/json' \
+  --data-raw "{ \"refreshToken\": \"${refresh_token}\" }" 2>/dev/null)
+
+  # Check if the curl command was successful (exit code 0)
+  if [[ $? -eq 0 ]]; then
+    # Use jq (assuming it's installed) to parse JSON and extract accessToken
+    access_token=$(echo "$response" | jq -r '.accessToken')
+    refresh_token=$(echo "$response" | jq -r '.refreshToken')
+
+    # Check if access token is found
+    if [[ -n "$access_token" ]]; then
+      # If debug set, print the token.  Otherwise, print the first 10 characters.
+      if [ -n "$ZSCAN_DEBUG" ]; then
+        echo "Extracted access token: ${access_token}"
+      else
+        echo "Extracted access token: ${access_token:0:10}..."
+      fi
+    else
+      echo "Error: access token not found in response. Reusing the old token."
+      access_token=$prev_access_token
+    fi
+  else
+    echo "Error: unable to refresh access token. Reusing the old token."
+    access_token=$prev_access_token
+  fi
+
+  # Construct the Authorization header with Bearer token
+  AUTH_HEADER="Authorization: Bearer ${access_token}"
+
   # Retrieve the report
   # Figure out report's fully qualified file name
   # if not explicitly set, use the default
@@ -253,11 +293,11 @@ for input_file in "${input_files[@]}"; do
   # Check for errors in the curl command
   if [ $? -ne 0 ]; then
     echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed."
-    exit 1
+    continue
   fi
 
   # Print confirmation message
-  echo "Response saved to: $OUTPUT_FILE"
+  echo "Assessment for file $input_file saved to: $OUTPUT_FILE"
 
 done # iterating over files
 

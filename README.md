@@ -35,7 +35,7 @@ These parameters are mandatory, _unless_ a default value is available as describ
 These parameters are optional, but may be used to supply additional information about the build and/or control the plugin's output.
 
 - **ZSCAN_REPORT_LOCATION**: destination folder for the vulnerability report. If not provided, the report is stored in the current workspace. Report location and name are important for [Job Artifact](https://docs.gitlab.com/ee/ci/jobs/job_artifacts.html) collection.
-- **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-AssessmentID-report-format.json, e.g., _zscan-results-123456789-sarif.json_.
+- **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-\<AssessmentID\>-\<report-format\>.json, e.g., _zscan-results-123456789-sarif.json_.  **Note:** The filename will be used as-is, so if a pattern that matches multiple input file is provided, only _the last report_ will be preserved.
 - **ZSCAN_WAIT_FOR_REPORT**: if set to "true" (default), the script will wait for the assessment report to be complete. Otherwise, the script will exit after uploading the binary to zScan.  The assessment report can be obtained through the console. Report filename and location parameters are ignored. No artifact will be produced.
 - **ZSCAN_POLLING_INTERVAL**: wait time for polling the server in seconds. 30 seconds is the default.
 - **ZSCAN_BRANCH**: source code branch that the build is based on.
