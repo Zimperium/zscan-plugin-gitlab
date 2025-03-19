@@ -26,7 +26,7 @@ These parameters are mandatory, _unless_ a default value is available as describ
 
 - **ZSCAN_SERVER_URL**: console base URL, e.g., `https://ziap.zimperium.com/`.
 - **ZSCAN_CLIENT_ID** and **ZSCAN_CLIENT_SECRET**: API credentials that can be obtained from the console (see the [Prerequisites](#prerequisites) section above).
-- **ZSCAN_INPUT_FILE**: the path to the binary relative to the current workspace.
+- **ZSCAN_INPUT_PATTERN**: the path to the binary or binaries relative to the current workspace.  Either exact filename or a wildcard is accepted. The script will _not_ look inside sub-folders.  No more than 5 files can match the pattern; if the pattern matches more than 5 files, you will need to narrow it down. This is done to minimize the possibility of including too many files by accident, e.g., by specifying `*.*`.  Please remember to enclose _patterns_ in quotes.  Single file path can be used with or without quotes.
 - **ZSCAN_TEAM_NAME**: name of the team to which this application belongs.  This is required only if submitting the application for the first time; values are ignored if the application already exists in the console and assigned to a team.  If not supplied, the application will be assigned to the 'Default' team
 - **ZSCAN_REPORT_FORMAT**: the format of the scan report, either 'json' or 'sarif' (default).  If you plan on importing zScan results into GitLab Ultimate edition, please use sarif format.  For more information on the SARIF format, please see [OASIS Open](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html).
 
@@ -35,7 +35,7 @@ These parameters are mandatory, _unless_ a default value is available as describ
 These parameters are optional, but may be used to supply additional information about the build and/or control the plugin's output.
 
 - **ZSCAN_REPORT_LOCATION**: destination folder for the vulnerability report. If not provided, the report is stored in the current workspace. Report location and name are important for [Job Artifact](https://docs.gitlab.com/ee/ci/jobs/job_artifacts.html) collection.
-- **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-AssessmentID-report-format.json, e.g., _zscan-results-123456789-sarif.json_.
+- **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-\<AssessmentID\>-\<report-format\>.json, e.g., _zscan-results-123456789-sarif.json_.  **Note:** The filename will be used as-is, so if a pattern that matches multiple input file is provided, only _the last report_ will be preserved.
 - **ZSCAN_WAIT_FOR_REPORT**: if set to "true" (default), the script will wait for the assessment report to be complete. Otherwise, the script will exit after uploading the binary to zScan.  The assessment report can be obtained through the console. Report filename and location parameters are ignored. No artifact will be produced.
 - **ZSCAN_POLLING_INTERVAL**: wait time for polling the server in seconds. 30 seconds is the default.
 - **ZSCAN_BRANCH**: source code branch that the build is based on.
@@ -68,7 +68,7 @@ zScan:
         - zscan-report.json
 ```
 
-Modify the above script as needed.  The sample script assumes that the variables are correctly configured per the [Parameters](#parameters) section above, including server URL, client id/secret, and the input file.  The optional part uses an open source SARIF-to-GitLab converter to convert zScan report into the format suitable for importing into [GitLab Security dashboard](https://docs.gitlab.com/ee/user/application_security/security_dashboard/).  The Dashboard is only available with the GitLab Ultimate edition.  If dashboard is not available, you can modify the Artifact section of the job to look like this and download the report from the Artifacts tab:
+Modify the above script as needed, e.g., replace the tag with the version of your choice.  The sample script assumes that the variables are correctly configured per the [Parameters](#parameters) section above, including server URL, client id/secret, and the input pattern that specifies a pattern that matches a single file.  The optional part uses an open source SARIF-to-GitLab converter to convert zScan report into the format suitable for importing into [GitLab Security dashboard](https://docs.gitlab.com/ee/user/application_security/security_dashboard/).  The Dashboard is only available with the GitLab Ultimate edition.  If dashboard is not available in your installation, omit the optional section and modify the Artifact section of the job to look like this and download the report from the Artifacts tab:
 
 ```yaml
   artifacts:
@@ -77,7 +77,7 @@ Modify the above script as needed.  The sample script assumes that the variables
       $ZSCAN_REPORT_FILE_NAME
 ```
 
-**Note:** If the script is configured not to wait for an assessment report, no artifacts will be produced.
+**Note:** If the script is configured not to wait for an assessment report, no artifacts will be produced.  If the input pattern matches multiple files, the assessment of the _last_ uploaded file will be added as an artifact.  Modify the `artifacts` section to upload multiple assessment reports.
 
 ## License
 
