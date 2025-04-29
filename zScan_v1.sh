@@ -75,8 +75,8 @@ if [ -z "$client_id" ] || [ -z "$secret" ]; then
 fi
 
 # Output format must be one of [json, sarif]
-if [ "$report_format" != "json" ] && [ "$report_format" != "sarif" ]; then
-  echo "Error: Output format must be one of [json, sarif]."
+if [ "$report_format" != "json" ] && [ "$report_format" != "sarif" ] && [ "$report_format" != "pdf" ]; then
+  echo "Error: Output format must be one of [json, sarif, pdf]."
   exit 1
 fi
 
@@ -282,18 +282,39 @@ for input_file in "${input_files[@]}"; do
   # Figure out report's fully qualified file name
   # if not explicitly set, use the default
   if [ -z $report_file_name ]; then
-    OUTPUT_FILE=$report_location/zscan-results-${AssessmentID}-${report_format}.json
+    OUTPUT_FILE=$report_location/zscan-results-${AssessmentID}.${report_format}
   else
     OUTPUT_FILE=$report_location/$report_file_name
   fi
 
   # Send GET request with curl and capture the response
-  curl -s -o "${OUTPUT_FILE}" -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/${report_format}"
+  if [ "$report_format" == "json" ] || [ "$report_format" == "sarif" ]; then
+    curl -s -o "${OUTPUT_FILE}" -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/${report_format}"
+    
+    # Check for errors in the curl command
+    if [ $? -ne 0 ]; then
+      echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed."
+      continue
+    fi
+  else
+    # PDF report has a few extra steps
+    response=$(curl -s -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/report")
 
-  # Check for errors in the curl command
-  if [ $? -ne 0 ]; then
-    echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed."
-    continue
+    # extract the report URL from the response
+    report_url=$(echo "$response" | jq -r '.cdn_link')
+
+    # Check if the report URL was extracted successfully
+    if [ -z "$report_url" ]; then
+      echo "Error: Failed to extract report URL from response."
+      continue
+    fi
+    # Download the PDF report
+    curl -s -o "${OUTPUT_FILE}" "${report_url}"
+    # Check for errors in the curl command
+    if [ $? -ne 0 ]; then
+      echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed."
+      continue
+    fi
   fi
 
   # Print confirmation message
