@@ -22,6 +22,7 @@ report_location=${ZSCAN_REPORT_LOCATION:-.}
 report_file_name=${ZSCAN_REPORT_FILE_NAME:-}
 wait_for_report=${ZSCAN_WAIT_FOR_REPORT:-true}
 wait_interval=${ZSCAN_POLLING_INTERVAL:-30}
+report_timeout=${ZSCAN_REPORT_TIMEOUT:-3600}
 branch_name=${ZSCAN_BRANCH:-}
 build_number=${ZSCAN_BUILD_NUMBER:-}
 environment=${ZSCAN_ENVIRONMENT:-}
@@ -41,6 +42,32 @@ ScanStatus="Submitted"
 ciToolId="GTLB"
 ciToolName="GitLab Pipeline"
 max_files=5 # Maximum number of files that can match the pattern for upload.  We do not want to accidentally upload too many files.
+curl_retry_options=(--retry 5 --retry-delay 5 --retry-max-time 180 --retry-connrefused)
+
+print_json_findings_summary() {
+  local report_file="$1"
+  local summary
+
+  if ! summary=$(jq -r '
+    def severity:
+      ((.severity // "Unknown") | tostring | ascii_downcase) as $value |
+      if ["critical", "high", "medium", "low", "informational", "best practices"] | index($value)
+      then $value
+      else "unknown"
+      end;
+    [{key: "critical", label: "Critical"}, {key: "high", label: "High"}, {key: "medium", label: "Medium"}, {key: "low", label: "Low"}, {key: "informational", label: "Informational"}, {key: "best practices", label: "Best Practices"}, {key: "unknown", label: "Unknown"}] as $severity_order |
+    (.findings | if type == "array" then . else error("missing findings array") end) as $findings |
+    (reduce ($findings[]? | severity) as $value ({}; .[$value] = ((.[$value] // 0) + 1))) as $counts |
+    "Findings summary:",
+    ($severity_order[] | "  \(.label): \($counts[.key] // 0)"),
+    "  Total: \($findings | length)"
+  ' "$report_file"); then
+    echo "Error: downloaded file '$report_file' is not a valid zScan JSON report."
+    return 1
+  fi
+
+  printf '%s\n' "$summary" | sed 's/ : /: /'
+}
 
 # Input Validation
 # Input pattern must be specified
@@ -83,6 +110,11 @@ fi
 # Minimum wait time is 30 seconds; we don't want to DDOS our own servers
 if [ $wait_interval -lt 30 ]; then
   wait_interval=30
+fi
+
+if ! [[ "$report_timeout" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: ZSCAN_REPORT_TIMEOUT must be a positive number of seconds."
+  exit 1
 fi
 
 # Remove trailing spaces
@@ -128,7 +160,7 @@ echo "Processing ${file_count} files matching the pattern '${input_pattern}'."
 for input_file in "${input_files[@]}"; do
   echo "Uploading Binary: ${input_file}"
   
-  response=$(curl -X POST \
+  if response=$(curl "${curl_retry_options[@]}" --fail -X POST \
     -H "${AUTH_HEADER}" \
     -H "Content-Type: multipart/form-data" \
     -F "buildFile=@${input_file}" \
@@ -137,10 +169,9 @@ for input_file in "${input_files[@]}"; do
     -F "branchName=${branch_name}" \
     -F "ciToolId=${ciToolId}" \
     -F "ciToolName=${ciToolName}" \
-    "${server_url}${upload_url}" 2>/dev/null)
+    "${server_url}${upload_url}" 2>/dev/null); then
 
   # Check for successful response (status code 200)
-  if [ $? -eq 0 ]; then
     # Convert JSON response to a readable format
     formatted_json=$(echo "$response" | jq .)
 
@@ -166,7 +197,8 @@ for input_file in "${input_files[@]}"; do
     fi
   else
     echo "Error: Failed to upload APK file."
-    echo "Response code: $?"
+    echo "The upload was retried for transient HTTP errors before failing."
+    continue
   fi
 
   # Assign to a team if this is a new application - teamId is null
@@ -213,16 +245,16 @@ for input_file in "${input_files[@]}"; do
     continue
   fi
 
-  # Check the Status in a loop - wait for Interval
-  # TODO: add timeout
-  while true; do 
+  # Check the status until the report is ready or the configured timeout expires
+  end_time=$(( $(date +%s) + report_timeout ))
+  while [ "$(date +%s)" -lt "$end_time" ]; do
     # Check the Status
     response=$(curl -X GET \
       -H "${AUTH_HEADER}" \
       -H "Content-Type: application/json" \
       "${server_url}${status_url}${buildId}" 2>/dev/null)
 
-    sleep 5 
+    sleep 5
     formatted_json=$(echo "$response" | jq .)
 
     if [ $? -eq 0 ]; then
@@ -237,10 +269,15 @@ for input_file in "${input_files[@]}"; do
       fi
     else
       echo "Error Checking the Status of Scan."
-    fi  
+    fi
     # Sleep for the interval
     sleep ${wait_interval}
   done
+
+  if [[ ${ScanStatus} != "Done" ]]; then
+    echo "Error: Timed out waiting for assessment status after ${report_timeout} seconds."
+    continue
+  fi
 
   # refresh the access token
   echo "Refreshing access token..."
@@ -287,18 +324,42 @@ for input_file in "${input_files[@]}"; do
     OUTPUT_FILE=$report_location/$report_file_name
   fi
 
-  # Send GET request with curl and capture the response
-  if [ "$report_format" == "json" ] || [ "$report_format" == "sarif" ]; then
-    curl -s -o "${OUTPUT_FILE}" -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/${report_format}"
-    
-    # Check for errors in the curl command
-    if [ $? -ne 0 ]; then
-      echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed."
+  # Download JSON for the severity summary, regardless of the requested artifact format
+  if [ "$report_format" == "json" ]; then
+    JSON_OUTPUT_FILE="${OUTPUT_FILE}"
+  else
+    JSON_OUTPUT_FILE=$report_location/zscan-results-${AssessmentID}.json
+  fi
+
+  if ! curl -s "${curl_retry_options[@]}" --fail -o "${JSON_OUTPUT_FILE}" \
+    -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/json"; then
+    rm -f "${JSON_OUTPUT_FILE}"
+    echo "Error: curl command to retrieve JSON assessment #'${AssessmentID}' failed after retries."
+    continue
+  fi
+
+  if ! print_json_findings_summary "${JSON_OUTPUT_FILE}"; then
+    rm -f "${JSON_OUTPUT_FILE}"
+    continue
+  fi
+
+  # Retrieve the requested artifact format if it is not already the JSON report
+  if [ "$report_format" == "json" ]; then
+    :
+  elif [ "$report_format" == "sarif" ]; then
+    if ! curl -s "${curl_retry_options[@]}" --fail -o "${OUTPUT_FILE}" \
+      -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/sarif"; then
+      rm -f "${OUTPUT_FILE}"
+      echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed after retries."
       continue
     fi
   else
     # PDF report has a few extra steps
-    response=$(curl -s -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/report")
+    if ! response=$(curl -s "${curl_retry_options[@]}" --fail \
+      -H "${AUTH_HEADER}" "${server_url}${download_assessment_url}/${AssessmentID}/report"); then
+      echo "Error: failed to retrieve the PDF report URL after retries."
+      continue
+    fi
 
     # extract the report URL from the response
     report_url=$(echo "$response" | jq -r '.cdn_link')
@@ -309,10 +370,9 @@ for input_file in "${input_files[@]}"; do
       continue
     fi
     # Download the PDF report
-    curl -s -o "${OUTPUT_FILE}" "${report_url}"
-    # Check for errors in the curl command
-    if [ $? -ne 0 ]; then
-      echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed."
+    if ! curl -s "${curl_retry_options[@]}" --fail -o "${OUTPUT_FILE}" "${report_url}"; then
+      rm -f "${OUTPUT_FILE}"
+      echo "Error: curl command to retrieve assessment #'${AssessmentID}' failed after retries."
       continue
     fi
   fi

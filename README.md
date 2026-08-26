@@ -38,9 +38,18 @@ These parameters are optional, but may be used to supply additional information 
 - **ZSCAN_REPORT_FILE_NAME**: filename of the report. If not provided, the filename will be patterned as follows: zscan-results-\<AssessmentID\>.\<report-format\>, e.g., _zscan-results-123456789.sarif_.  **Note:** If provided, the filename will be used as-is, so if a pattern that matches multiple input files is used, only _the last report_ will be preserved.
 - **ZSCAN_WAIT_FOR_REPORT**: if set to "true" (default), the script will wait for the assessment report to be complete. Otherwise, the script will exit after uploading the binary to zScan.  The assessment report can be obtained through the console. Report filename and location parameters are ignored. No artifact will be produced.
 - **ZSCAN_POLLING_INTERVAL**: wait time for polling the server in seconds. 30 seconds is the default.
+- **ZSCAN_REPORT_TIMEOUT**: maximum time to wait for the assessment to complete, in seconds. 3600 seconds (60 minutes) is the default. If the assessment does not finish within this time, the script reports a timeout and continues with the next input file.
 - **ZSCAN_BRANCH**: source code branch that the build is based on.
 - **ZSCAN_BUILD_NUMBER**: application build number.
 - **ZSCAN_ENVIRONMENT**: target environment, e.g., uat, dev, prod.
+
+### Network retries
+
+The upload request and report downloads use curl's built-in retry handling. Each request retries up to 5 times, waits 5 seconds between attempts, and stops retrying after 180 seconds. Curl retries connection failures and transient HTTP responses: `408`, `429`, `500`, `502`, `503`, and `504`. Authentication and other non-transient HTTP errors are not retried.
+
+### JSON report summary
+
+The script always downloads and validates a JSON report when it waits for results, regardless of **ZSCAN_REPORT_FORMAT**, and prints a count of findings for each severity followed by the total. When the configured format is `json`, this is the configured report. For `sarif` or `pdf`, the JSON report is saved alongside the requested artifact as `zscan-results-<AssessmentID>.json`. Severity names are normalized to the standard zScan levels; unrecognized or missing values are reported as `unknown`.
 
 ## Usage
 
